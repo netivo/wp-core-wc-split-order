@@ -1,0 +1,43 @@
+{
+  "name": "netivo/wc-split-order",
+  "description": "Netivo Module for splitting orders based on stock availability.",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "version": "1.0",
+  "authors": [
+    {
+      "name": "netivo",
+      "email": "biuro@netivo.pl"
+    },
+    {
+      "name": "Michał Świątek",
+      "email": "michal.swiatek@netivo.pl"
+    }
+  ],
+  "require": {
+    "php": ">=8.2",
+    "ext-curl": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5 || ^11.0",
+    "brain/monkey": "^2.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "Netivo\\Module\\WooCommerce\\SplitOrder\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Netivo\\Module\\WooCommerce\\SplitOrder\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": [
+      "@php -d zend.enable_gc=0 vendor/bin/phpunit"
+    ],
+    "test-debug": [
+      "@php -d zend.enable_gc=0 vendor/bin/phpunit --debug"
+    ]
+  }
+}
