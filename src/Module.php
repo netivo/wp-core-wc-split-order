@@ -62,6 +62,18 @@ class Module {
 		return null;
 	}
 
+	public static function get_module_uri(): false|string|null {
+		$path = Module::get_module_path();
+		if ( ! empty( $path ) ) {
+			$td   = get_template_directory();
+			$turl = get_template_directory_uri();
+
+			return str_replace( $td, $turl, $path );
+		}
+
+		return null;
+	}
+
 	protected function __construct() {
 		$this->init_config();
 		global $products_to_split;
@@ -77,7 +89,7 @@ class Module {
 
 			wp_enqueue_script(
 				'nt-split-orders',
-				self::get_module_path() . 'dist/split-orders.js',
+				self::get_module_uri() . '/dist/split-orders.js',
 				array( 'jquery' ),
 				'1.0.3',
 				true

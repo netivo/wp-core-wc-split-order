@@ -20,6 +20,10 @@ class Checkout {
     public function __construct() {
         add_action( 'woocommerce_review_order_before_shipping', array( $this, 'add_split_shipping_option_in_table' ) );
         add_filter( 'woocommerce_package_rates', array( $this, 'update_shipping_costs' ), 100, 2 );
+        add_filter( 'woocommerce_cart_shipping_method_full_label', array(
+                $this,
+                'modify_double_delivery_label'
+        ), 100, 2 );
 
         add_action( 'woocommerce_checkout_order_created', array( $this, 'save_split_shipping_option' ) );
         add_action( 'woocommerce_payment_complete', array( $this, 'split_order_after_payment' ), 10, 1 );
@@ -70,6 +74,24 @@ class Checkout {
         }
 
         return $rates;
+    }
+
+    public function modify_double_delivery_label( $label, $method ) {
+
+        $has_double_delivery = strpos( $label, ' (podwójna dostawa)' ) !== false;
+        $clean_label         = str_replace( ' (podwójna dostawa)', '', $label );
+
+        $parts       = explode( ':', $clean_label, 2 );
+        $method_name = isset( $parts[0] ) ? trim( $parts[0] ) : $clean_label;
+        $price       = isset( $parts[1] ) ? trim( $parts[1] ) : '';
+
+        $output = $method_name . ': ' . $price;
+
+        if ( $has_double_delivery ) {
+            $output .= '<span class="double-delivery"> </br> (podwójna dostawa) </span>';
+        }
+
+        return $output;
     }
 
     public function save_split_shipping_option( $order ): void {
