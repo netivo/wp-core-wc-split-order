@@ -43,7 +43,10 @@ class Checkout {
         <tr class="woocommerce-shipping-totals-shipping-split">
             <th colspan="2">
                 <label>
-                    <input type="checkbox" name="split_shipping" value="1" <?php checked( $split_shipping, true ); ?> />
+                    <input type="checkbox" name="split_shipping" id="split_shipping" value="1" <?php checked(
+                            $split_shipping,
+                            true );
+                    ?> />
                     <?php esc_html_e( 'Split order', 'netivo' ); ?>
                 </label>
             </th>
