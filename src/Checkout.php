@@ -31,6 +31,8 @@ class Checkout {
 
 		add_action( 'wp_ajax_update_split_shipping', array( $this, 'update_split_shipping_ajax' ) );
 		add_action( 'wp_ajax_nopriv_update_split_shipping', array( $this, 'update_split_shipping_ajax' ) );
+
+		add_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99, 2 );
 	}
 
 	public function add_split_shipping_option_in_table(): void {
@@ -121,7 +123,7 @@ class Checkout {
 		}
 	}
 
-	public function update_split_shipping_ajax() {
+	public function update_split_shipping_ajax(): void {
 		if ( isset( $_POST['split_shipping'] ) ) {
 			$split_shipping = $_POST['split_shipping'] === 'true' || $_POST['split_shipping'] === true;
 
@@ -150,6 +152,19 @@ class Checkout {
 
 		wp_send_json( $data );
 		wp_die();
+	}
+
+	public function modify_order_number( $order_number, $order ) {
+		if ( is_checkout() ) {
+			if ( $order->get_meta( '_order_split' ) === 'yes' ) {
+				$split_id    = $order->get_meta( '_order_split_id' );
+				$split_order = wc_get_order( $split_id );
+
+				return $order_number . ', ' . $split_order->get_order_number();
+			}
+		}
+
+		return $order_number;
 	}
 
 	protected function can_order_be_split(): bool {
@@ -303,6 +318,9 @@ class Checkout {
 
 		$order->calculate_totals();
 		$split_order->calculate_totals();
+
+		$order->add_meta_data( '_order_split_id', $split_order->get_id(), true );
+		$split_order->add_meta_data( '_split_order', $order->get_id(), true );
 
 		$order->save();
 		$split_order->save();
