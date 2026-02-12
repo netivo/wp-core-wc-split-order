@@ -34,6 +34,8 @@ class Checkout {
 
 		add_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99, 2 );
 		add_filter( 'woocommerce_get_formatted_order_total', array( $this, 'modify_order_total' ), 99, 2 );
+
+		add_filter( 'woocommerce_get_order_item_totals', array( $this, 'modify_order_item_totals' ), 10, 2 );
 	}
 
 	public function add_split_shipping_option_in_table(): void {
@@ -155,7 +157,7 @@ class Checkout {
 		wp_die();
 	}
 
-	public function modify_order_number( $order_number, $order ) {
+	public function modify_order_number( $order_number, $order ): string {
 		if ( is_checkout() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
@@ -166,7 +168,7 @@ class Checkout {
 		return $order_number;
 	}
 
-	public function modify_order_total( $total, $order ) {
+	public function modify_order_total( $total, $order ): string {
 		if ( is_checkout() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
@@ -177,6 +179,17 @@ class Checkout {
 		}
 
 		return $total;
+	}
+
+	public function modify_order_item_totals( $totals, $order ): array {
+		if ( is_checkout() ) {
+			$split_order = $this->get_split_order( $order );
+			if ( ! empty( $split_order ) ) {
+				$totals['order_total']['value'] = wc_price( $order->get_total() );
+			}
+		}
+
+		return $totals;
 	}
 
 	protected function can_order_be_split(): bool {
