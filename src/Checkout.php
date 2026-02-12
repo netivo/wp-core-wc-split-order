@@ -225,7 +225,9 @@ class Checkout {
 		if ( is_checkout() ) {
 			if ( $order->get_meta( '_order_split' ) === 'yes' ) {
 				remove_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99 );
-				echo '<h2 class="woocommerce-order-details__title">Zamówienie ' . $order->get_order_number() . '</h2>';
+				?>
+                <h2 class="woocommerce-order-details__title"><?php echo wp_kses_post( sprintf( __( 'Zamówienie %s', 'netivo' ), $order->get_order_number() ) ); ?></h2>
+				<?php
 			}
 		}
 	}
