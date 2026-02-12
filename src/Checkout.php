@@ -33,6 +33,7 @@ class Checkout {
 		add_action( 'wp_ajax_nopriv_update_split_shipping', array( $this, 'update_split_shipping_ajax' ) );
 
 		add_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99, 2 );
+		add_filter( 'woocommerce_get_formatted_order_total', array( $this, 'modify_order_total' ), 99, 2 );
 	}
 
 	public function add_split_shipping_option_in_table(): void {
@@ -156,15 +157,26 @@ class Checkout {
 
 	public function modify_order_number( $order_number, $order ) {
 		if ( is_checkout() ) {
-			if ( $order->get_meta( '_order_split' ) === 'yes' ) {
-				$split_id    = $order->get_meta( '_order_split_id' );
-				$split_order = wc_get_order( $split_id );
-
-				return $order_number . ', ' . $split_order->get_order_number();
+			$split_order = $this->get_split_order( $order );
+			if ( ! empty( $split_order ) ) {
+				return $order_number . ', ' . $split_order->get_id();
 			}
 		}
 
 		return $order_number;
+	}
+
+	public function modify_order_total( $total, $order ) {
+		if ( is_checkout() ) {
+			$split_order = $this->get_split_order( $order );
+			if ( ! empty( $split_order ) ) {
+				$new_total = $order->get_total() + $split_order->get_total();
+
+				return wc_price( $new_total );
+			}
+		}
+
+		return $total;
 	}
 
 	protected function can_order_be_split(): bool {
@@ -319,8 +331,7 @@ class Checkout {
 		$order->calculate_totals();
 		$split_order->calculate_totals();
 
-		$order->add_meta_data( '_order_split_id', $split_order->get_id(), true );
-		$split_order->add_meta_data( '_split_order', $order->get_id(), true );
+		$order->update_meta_data( '_order_to_split', 'no' );
 
 		$order->save();
 		$split_order->save();
@@ -377,5 +388,23 @@ class Checkout {
 		$order->update_meta_data( '_split_to_order', $new_order->get_id() );
 
 		return $new_order;
+	}
+
+	protected function get_split_order( $order ) {
+		global $second_split_order;
+		if ( $order->get_meta( '_order_split' ) === 'yes' ) {
+			$split_id = $order->get_meta( '_split_to_order' );
+			if ( ! empty( $split_id ) ) {
+				if ( ! empty( $second_split_order ) ) {
+					return $second_split_order;
+				}
+				$second_split_order = wc_get_order( $split_id );
+				if ( ! empty( $second_split_order ) ) {
+					return $second_split_order;
+				}
+			}
+		}
+
+		return null;
 	}
 }
