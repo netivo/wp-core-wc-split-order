@@ -21,6 +21,9 @@ class Module {
 	 */
 	protected static ?self $instance = null;
 
+	/**
+	 * Stores the configuration settings as an empty array, which can be populated as needed.
+	 */
 	protected array $config = array();
 
 	/**
@@ -45,14 +48,30 @@ class Module {
 		return self::get_instance()->get_config();
 	}
 
+	/**
+	 * Determines the configured condition under which an order should be split.
+	 *
+	 * @return string The configuration value that specifies the criteria for splitting orders.
+	 */
 	public static function when_to_split_order(): string {
 		return self::get_config_array()['split_order'];
 	}
 
+	/**
+	 * Checks if the delivery cost duplication feature is enabled based on the configuration settings.
+	 *
+	 * @return bool Returns true if the duplicate delivery cost feature is enabled, false otherwise.
+	 */
 	public static function duplicate_delivery_cost(): bool {
 		return self::get_config_array()['duplicate_delivery_cost'];
 	}
 
+	/**
+	 * Retrieves the absolute path of the module directory if it exists.
+	 *
+	 * @return false|string|null Returns the absolute path as a string if the directory exists,
+	 *                           false if the path cannot be resolved, or null if the path does not exist.
+	 */
 	public static function get_module_path(): false|string|null {
 		$file = realpath( __DIR__ . '/../' );
 		if ( file_exists( $file ) ) {
@@ -62,6 +81,11 @@ class Module {
 		return null;
 	}
 
+	/**
+	 * Retrieves the URI of the module.
+	 *
+	 * @return false|string|null The module URI if available, false on failure, or null if the module path is empty.
+	 */
 	public static function get_module_uri(): false|string|null {
 		$path = Module::get_module_path();
 		if ( ! empty( $path ) ) {
@@ -84,7 +108,15 @@ class Module {
 		new Checkout();
 	}
 
-	public function enqueue_scripts() {
+	/**
+	 * Enqueues the necessary scripts for split orders functionality on the checkout or cart page.
+	 *
+	 * This method loads a JavaScript file, localizes script parameters, and ensures the script is only
+	 * enqueued on the appropriate pages.
+	 *
+	 * @return void
+	 */
+	public function enqueue_scripts(): void {
 		if ( is_checkout() || is_cart() ) {
 
 			wp_enqueue_script(
@@ -107,6 +139,13 @@ class Module {
 	}
 
 
+	/**
+	 * Initializes the configuration settings for the class.
+	 * Loads the configuration file if it exists and sets default values
+	 * for missing configuration keys.
+	 *
+	 * @return void
+	 */
 	public function init_config(): void {
 		if ( file_exists( get_stylesheet_directory() . "/config/split-order.config.php" ) ) {
 			$this->config = include get_stylesheet_directory() . "/config/split-order.config.php";
@@ -120,6 +159,11 @@ class Module {
 		}
 	}
 
+	/**
+	 * Retrieves the configuration settings.
+	 *
+	 * @return array The configuration settings as an associative array.
+	 */
 	public function get_config(): array {
 		return $this->config;
 	}

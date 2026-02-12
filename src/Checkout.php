@@ -9,6 +9,7 @@
 
 namespace Netivo\Module\WooCommerce\SplitOrder;
 
+use JetBrains\PhpStorm\NoReturn;
 use WC_Order;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -16,6 +17,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Class Checkout
+ * Handles custom WooCommerce functionality related to splitting orders, modifying shipping options,
+ * updating order details, and responding to user actions in the checkout process.
+ *
+ * Utilizes WooCommerce hooks, filters, and actions to implement the following functionality:
+ * - Allow users to select a "split shipping" option during checkout.
+ * - Update shipping costs and labels if split shipping is selected.
+ * - Save and process the split shipping option during and after the order is created.
+ * - Modify the display of order details including order numbers, totals, and items.
+ * - Handle AJAX updates to the split shipping option during checkout.
+ * - Customize actions on the "Thank You" page and order details table.
+ * - Conditionally split orders based on predefined rules.
+ */
 class Checkout {
 	public function __construct() {
 		add_action( 'woocommerce_review_order_before_shipping', array( $this, 'add_split_shipping_option_in_table' ) );
@@ -47,6 +62,12 @@ class Checkout {
 		), 10, 1 );
 	}
 
+	/**
+	 * Adds an option in the shipping table to allow splitting the order into multiple shipments.
+	 * The method checks if the order can be split and, if so, renders a checkbox in the shipping totals section.
+	 *
+	 * @return void
+	 */
 	public function add_split_shipping_option_in_table(): void {
 		if ( ! $this->can_order_be_split() ) {
 			return;
@@ -70,7 +91,19 @@ class Checkout {
 		<?php
 	}
 
-	public function update_shipping_costs( $rates, $package ) {
+	/**
+	 * Updates the shipping costs for the given rates when the "split shipping" option is enabled.
+	 *
+	 * This method checks the session for the "split_shipping" option, and if enabled, doubles
+	 * the shipping costs, updates the corresponding taxes, and modifies the label to indicate
+	 * the doubled shipping cost.
+	 *
+	 * @param array $rates An array of shipping rates. Each rate contains cost, taxes, and label information.
+	 * @param mixed $package A package object or array representing the shipping package details.
+	 *
+	 * @return array The updated array of shipping rates after applying modifications.
+	 */
+	public function update_shipping_costs( array $rates, $package ): array {
 		// Sprawdź, czy opcja podziału jest wybrana
 		$split_shipping = WC()->session->get( 'split_shipping', false );
 
@@ -95,7 +128,19 @@ class Checkout {
 		return $rates;
 	}
 
-	public function modify_double_delivery_label( $label, $method ) {
+	/**
+	 * Modifies the delivery label to format it correctly and append a "double delivery" indicator if applicable.
+	 *
+	 * This method checks if the label includes an indication of double delivery. It cleans and separates
+	 * the method name and price, reformats the label accordingly, and appends a "double delivery" message
+	 * when applicable.
+	 *
+	 * @param string $label The original delivery label potentially containing a "double delivery" tag.
+	 * @param mixed $method The delivery method used; this value can hold additional contextual information.
+	 *
+	 * @return string The updated delivery label formatted with or without the "double delivery" indicator.
+	 */
+	public function modify_double_delivery_label( string $label, $method ): string {
 
 		$has_double_delivery = strpos( $label, ' (podwójna dostawa)' ) !== false;
 		$clean_label         = str_replace( ' (podwójna dostawa)', '', $label );
@@ -113,6 +158,17 @@ class Checkout {
 		return $output;
 	}
 
+	/**
+	 * Saves the "split shipping" option for a given order based on the user's input.
+	 *
+	 * This method checks the request data to determine if the "split shipping" option was selected.
+	 * It updates the order's metadata to indicate whether the option is enabled or disabled and
+	 * saves the changes to the order.
+	 *
+	 * @param WC_Order $order The order object to which the "split shipping" option metadata will be saved.
+	 *
+	 * @return void This method does not return a value.
+	 */
 	public function save_split_shipping_option( $order ): void {
 		if ( isset( $_POST['split_shipping'] ) && $_POST['split_shipping'] == 1 ) {
 			$order->update_meta_data( '_order_to_split', 'yes' );
@@ -122,11 +178,33 @@ class Checkout {
 		$order->save();
 	}
 
-	public function split_order_after_payment( $order_id ): void {
+	/**
+	 * Splits an order into multiple sub-orders after payment is completed.
+	 *
+	 * This method processes the specified order by dividing it into smaller sub-orders
+	 * based on predefined criteria. It ensures that the splitting logic is applied
+	 * only after the payment for the original order has been successfully made.
+	 *
+	 * @param int $order_id The ID of the order to be split.
+	 *
+	 * @return void This method does not return a value.
+	 */
+	public function split_order_after_payment( int $order_id ): void {
 		$this->split_order( $order_id );
 	}
 
-	public function split_order_after_checkout( $order_id ): void {
+	/**
+	 * Splits the order after checkout based on specific payment methods.
+	 *
+	 * This method checks the payment method of the given order. If the payment method is "bacs,"
+	 * it triggers the order splitting process and assigns an appropriate order status based on
+	 * a configurable filter.
+	 *
+	 * @param int $order_id The ID of the order to be processed and potentially split.
+	 *
+	 * @return void No return value as the method processes the order directly.
+	 */
+	public function split_order_after_checkout( int $order_id ): void {
 		$order = wc_get_order( $order_id );
 		if ( $order ) {
 			if ( $order->get_payment_method() === 'bacs' ) {
@@ -135,6 +213,17 @@ class Checkout {
 		}
 	}
 
+	/**
+	 * Handles the AJAX request to update the "split shipping" option and refresh cart fragments.
+	 *
+	 * This method processes the `split_shipping` value from the `$_POST` request, updates the session
+	 * with the specified value, clears the shipping cache to force recalculation, and recalculates the
+	 * shipping costs and cart totals. It then refreshes the checkout order review fragment and
+	 * sends the updated fragments as a JSON response.
+	 *
+	 * @return void This method does not return a value. It outputs a JSON response and terminates execution.
+	 */
+	#[NoReturn]
 	public function update_split_shipping_ajax(): void {
 		if ( isset( $_POST['split_shipping'] ) ) {
 			$split_shipping = $_POST['split_shipping'] === 'true' || $_POST['split_shipping'] === true;
@@ -166,7 +255,18 @@ class Checkout {
 		wp_die();
 	}
 
-	public function modify_order_number( $order_number, $order ): string {
+	/**
+	 * Modifies the order number during the checkout process by appending an additional ID if a split order is detected.
+	 *
+	 * This method checks if the current request is during checkout and retrieves the split order associated with the
+	 * provided order. If a split order exists, its ID is appended to the original order number.
+	 *
+	 * @param string $order_number The original order number to be potentially modified.
+	 * @param WC_Order $order The WooCommerce order object associated with the order number.
+	 *
+	 * @return string The modified or original order number, with a split order ID appended if applicable.
+	 */
+	public function modify_order_number( string $order_number, WC_Order $order ): string {
 		if ( is_checkout() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
@@ -177,7 +277,20 @@ class Checkout {
 		return $order_number;
 	}
 
-	public function modify_order_total( $total, $order ): string {
+	/**
+	 * Modifies the order total during the checkout process when a split order exists.
+	 *
+	 * This method checks if the current context is the checkout and whether a split order
+	 * is associated with the given order. If a split order exists, it calculates the new
+	 * total by combining the totals of the main order and the split order, and formats
+	 * the result as a price.
+	 *
+	 * @param string $total The current formatted total amount for the order.
+	 * @param WC_Order $order The WooCommerce order object for which the total is being modified.
+	 *
+	 * @return string The modified formatted total amount, or the original total if no split order exists.
+	 */
+	public function modify_order_total( string $total, WC_Order $order ): string {
 		if ( is_checkout() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
@@ -190,7 +303,15 @@ class Checkout {
 		return $total;
 	}
 
-	public function order_details_table( $order_id ): void {
+	/**
+	 * Displays the order details table for a specified order ID. If the order has a split order associated with it,
+	 * the details table for the split order will also be displayed.
+	 *
+	 * @param int $order_id The ID of the order for which the details table should be generated.
+	 *
+	 * @return void
+	 */
+	public function order_details_table( int $order_id ): void {
 		if ( ! $order_id ) {
 			return;
 		}
@@ -210,7 +331,16 @@ class Checkout {
 		}
 	}
 
-	public function modify_order_item_totals( $totals, $order ): array {
+	/**
+	 * Modifies the order item totals array for an order. If the current context is the checkout,
+	 * and the order has a split order associated with it, the order total value is updated.
+	 *
+	 * @param array $totals An associative array of order item totals, including labels and values.
+	 * @param WC_Order $order The WooCommerce order object for which the totals are being processed.
+	 *
+	 * @return array The modified array of order item totals.
+	 */
+	public function modify_order_item_totals( array $totals, WC_Order $order ): array {
 		if ( is_checkout() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
@@ -221,7 +351,15 @@ class Checkout {
 		return $totals;
 	}
 
-	public function before_order_details_table( $order ): void {
+	/**
+	 * Executes actions before displaying the order details table. If the order is marked as split during checkout,
+	 * it removes the custom order number filter and displays a custom order title.
+	 *
+	 * @param WC_Order $order The WooCommerce order object associated with the current order.
+	 *
+	 * @return void
+	 */
+	public function before_order_details_table( WC_Order $order ): void {
 		if ( is_checkout() ) {
 			if ( $order->get_meta( '_order_split' ) === 'yes' ) {
 				remove_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99 );
@@ -232,6 +370,16 @@ class Checkout {
 		}
 	}
 
+	/**
+	 * Determines whether an order can be split based on the current module configuration
+	 * and order context.
+	 *
+	 * The method checks the configuration for when to split orders ('always', 'b2b_only',
+	 * or 'client_only') and evaluates the context, such as whether it is a B2B or client-specific
+	 * scenario. It also ensures there are eligible products to split in the order.
+	 *
+	 * @return bool True if the order can be split, false otherwise.
+	 */
 	protected function can_order_be_split(): bool {
 		if ( Module::when_to_split_order() == 'always' ) {
 			return ! empty( $this->get_products_to_split() );
@@ -256,7 +404,17 @@ class Checkout {
 		return false;
 	}
 
-	protected function get_products_to_split( WC_Order $order = null ): array {
+	/**
+	 * Retrieves a list of products that need to be split based on their stock status or quantity.
+	 * If no order is supplied, it evaluates the cart items. Otherwise, it evaluates the order items.
+	 *
+	 * @param WC_Order|null $order An optional WooCommerce order object. If null, the method evaluates the cart instead of an order.
+	 *
+	 * @return array An array of products or order items that need to be split due to stock issues.
+	 *               For cart evaluation, the array contains cart item data.
+	 *               For order evaluation, the array contains order item data indexed by their IDs.
+	 */
+	protected function get_products_to_split( ?WC_Order $order = null ): array {
 		if ( $order === null ) {
 			global $products_to_split;
 			if ( $products_to_split !== null ) {
@@ -304,7 +462,19 @@ class Checkout {
 		}
 	}
 
-	protected function split_order( WC_Order|int $order, $order_status = null ): int {
+	/**
+	 * Splits an order into two separate orders based on product stock availability or conditions.
+	 * The original order is updated, and a new order is created with split items.
+	 *
+	 * @param WC_Order|int $order The WooCommerce order object or its ID to be split.
+	 * @param string|null $order_status Optional. The status to assign to the created split order.
+	 *
+	 * @return int The ID of the newly created split order, or:
+	 *             -1 if the order couldn't be retrieved,
+	 *             -2 if the order was already split,
+	 *             0 if no products required splitting.
+	 */
+	protected function split_order( WC_Order|int $order, ?string $order_status = null ): int {
 		if ( ! is_a( $order, WC_Order::class ) ) {
 			$order = wc_get_order( $order );
 		}
@@ -392,7 +562,16 @@ class Checkout {
 		return $split_order->get_id();
 	}
 
-	protected function clone_order( $order, $order_status = null ): WC_Order {
+	/**
+	 * Clones an existing WooCommerce order to create a new order with similar properties and metadata.
+	 * Optionally allows setting a custom order status for the newly created order.
+	 *
+	 * @param WC_Order $order The original WooCommerce order object to be cloned.
+	 * @param string|null $order_status Optional. The desired status for the new order. If null, the status from the original order is used.
+	 *
+	 * @return WC_Order The newly created WooCommerce order object.
+	 */
+	protected function clone_order( WC_Order $order, ?string $order_status = null ): WC_Order {
 		if ( ! is_a( $order, 'WC_Order' ) ) {
 			$order = wc_get_order( $order );
 		}
@@ -443,7 +622,15 @@ class Checkout {
 		return $new_order;
 	}
 
-	protected function get_split_order( $order ) {
+	/**
+	 * Retrieves the secondary order associated with a split order process, if it exists.
+	 * The method checks whether the given order is marked as split and attempts to fetch the linked secondary order.
+	 *
+	 * @param WC_Order $order A WooCommerce order object to check for split order metadata.
+	 *
+	 * @return WC_Order|null The secondary split order object if it exists, or null if no split order is found.
+	 */
+	protected function get_split_order( WC_Order $order ): ?WC_Order {
 		global $second_split_order;
 		if ( $order->get_meta( '_order_split' ) === 'yes' ) {
 			$split_id = $order->get_meta( '_split_to_order' );
