@@ -42,10 +42,11 @@ class Checkout {
 		?>
         <tr class="woocommerce-shipping-totals-shipping-split">
             <th colspan="2">
-                <label> <input type="checkbox"
-                               name="split_shipping"
-                               id="split_shipping"
-                               value="1"
+                <label>
+                    <input type="checkbox"
+                           name="split_shipping"
+                           id="split_shipping"
+                           value="1"
 						<?php checked( $split_shipping, true ); ?>
                     />
 					<?php esc_html_e( 'Podzielić zamówienie?', 'netivo' ); ?>
@@ -247,6 +248,33 @@ class Checkout {
 
 		$split_order = $this->clone_order( $order );
 
+		if ( Module::duplicate_delivery_cost() ) {
+			foreach ( $order->get_shipping_methods() as $shipping_item ) {
+				$half_total = $shipping_item->get_total() / 2;
+				$taxes      = $shipping_item->get_taxes();
+				$half_taxes = array();
+				if ( ! empty( $taxes['total'] ) ) {
+					foreach ( $taxes['total'] as $tax_id => $tax_amount ) {
+						$half_taxes[ $tax_id ] = $tax_amount / 2;
+					}
+				}
+
+				// Update original order shipping item
+				$shipping_item->set_total( $half_total );
+				$shipping_item->set_taxes( array( 'total' => $half_taxes ) );
+				$shipping_item->save();
+
+				// Add to split order
+				$item = new \WC_Order_Item_Shipping();
+				$item->set_method_id( $shipping_item->get_method_id() );
+				$item->set_method_title( $shipping_item->get_method_title() );
+				$item->set_total( $half_total );
+				$item->set_taxes( array( 'total' => $half_taxes ) );
+				$split_order->add_item( $item );
+			}
+		}
+
+
 		foreach ( $products_to_split as $line_id => $pts ) {
 			$item_id = $split_order->add_product(
 				wc_get_product( $pts->get_product_id() ),
@@ -325,15 +353,6 @@ class Checkout {
 
 		if ( $order->get_meta( '_nip' ) ) {
 			$new_order->update_meta_data( '_nip', $order->get_meta( '_nip' ) );
-		}
-
-		// Kopiowanie metod wysyłki (opcjonalnie, zależy od wymagań, ale zazwyczaj chcemy tę samą metodę)
-		foreach ( $order->get_shipping_methods() as $shipping_item ) {
-			$item = new \WC_Order_Item_Shipping();
-			$item->set_method_id( $shipping_item->get_method_id() );
-			$item->set_method_title( $shipping_item->get_method_title() );
-			$item->set_total( $shipping_item->get_total() );
-			$new_order->add_item( $item );
 		}
 
 		$order->update_meta_data( '_order_split', 'yes' );
