@@ -40,6 +40,11 @@ class Checkout {
 		remove_action( 'woocommerce_thankyou', 'woocommerce_order_details_table', 10 );
 
 		add_action( 'woocommerce_thankyou', array( $this, 'order_details_table' ), 10 );
+
+		add_action( 'woocommerce_order_details_before_order_table', array(
+			$this,
+			'before_order_details_table'
+		), 10, 1 );
 	}
 
 	public function add_split_shipping_option_in_table(): void {
@@ -214,6 +219,15 @@ class Checkout {
 		}
 
 		return $totals;
+	}
+
+	public function before_order_details_table( $order ): void {
+		if ( is_checkout() ) {
+			if ( $order->get_meta( '_order_split' ) === 'yes' ) {
+				remove_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99 );
+				echo '<h2 class="woocommerce-order-details__title">Zamówienie ' . $order->get_order_number() . '</h2>';
+			}
+		}
 	}
 
 	protected function can_order_be_split(): bool {
