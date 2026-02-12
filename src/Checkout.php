@@ -246,7 +246,7 @@ class Checkout {
 			return 0;
 		}
 
-		$split_order = $this->clone_order( $order );
+		$split_order = $this->clone_order( $order, $order_status );
 
 		if ( Module::duplicate_delivery_cost() ) {
 			foreach ( $order->get_shipping_methods() as $shipping_item ) {
@@ -310,7 +310,7 @@ class Checkout {
 		return $split_order->get_id();
 	}
 
-	protected function clone_order( $order ): WC_Order {
+	protected function clone_order( $order, $order_status = null ): WC_Order {
 		if ( ! is_a( $order, 'WC_Order' ) ) {
 			$order = wc_get_order( $order );
 		}
@@ -320,7 +320,7 @@ class Checkout {
 		) );
 
 		$new_order->set_props( array(
-			'status'               => $order->get_status(),
+			'status'               => ( ! empty( $order_status ) ) ? $order_status : $order->get_status(),
 			'billing_first_name'   => $order->get_billing_first_name(),
 			'billing_last_name'    => $order->get_billing_last_name(),
 			'billing_company'      => $order->get_billing_company(),
