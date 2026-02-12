@@ -36,6 +36,10 @@ class Checkout {
 		add_filter( 'woocommerce_get_formatted_order_total', array( $this, 'modify_order_total' ), 99, 2 );
 
 		add_filter( 'woocommerce_get_order_item_totals', array( $this, 'modify_order_item_totals' ), 10, 2 );
+
+		remove_action( 'woocommerce_thankyou', 'woocommerce_order_details_table', 10 );
+
+		add_action( 'woocommerce_thankyou', array( $this, 'order_details_table' ), 10 );
 	}
 
 	public function add_split_shipping_option_in_table(): void {
@@ -179,6 +183,26 @@ class Checkout {
 		}
 
 		return $total;
+	}
+
+	public function order_details_table( $order_id ): void {
+		if ( ! $order_id ) {
+			return;
+		}
+
+		$order = wc_get_order( $order_id );
+
+		if ( ! $order ) {
+			return;
+		}
+
+		$split_order = $this->get_split_order( $order );
+
+		woocommerce_order_details_table( $order_id );
+
+		if ( ! empty( $split_order ) ) {
+			woocommerce_order_details_table( $split_order->get_id() );
+		}
 	}
 
 	public function modify_order_item_totals( $totals, $order ): array {
