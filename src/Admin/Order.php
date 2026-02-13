@@ -39,7 +39,7 @@ class Order {
 	 * @return void
 	 */
 	public function add_split_order_info( \WC_Order $order ): void {
-		$is_split_order = $order->get_meta( '_split_order' );
+		$is_split_order = $order->get_meta( '_order_split' );
 		if ( $is_split_order !== 'yes' ) {
 			return;
 		}
@@ -63,7 +63,7 @@ class Order {
         <div class="order_data_header">
             <p class="woocommerce-order-data__meta order_number">
 				<?php if ( $type === 'source' ) : ?>
-					<?php echo wp_kses_post( sprintf( __( 'Zamówienie zostało podzielone na: <a href="%s" target="_blank">%s</a>', 'netivo' ), $dest_order->get_edit_order_url(), $dest_order->get_order_number() ) ); ?>
+					<?php echo wp_kses_post( sprintf( __( 'Część zamówienia została wydzielona do zamówienia: <a href="%s" target="_blank">%s</a>', 'netivo' ), $dest_order->get_edit_order_url(), $dest_order->get_order_number() ) ); ?>
 				<?php else : ?>
 					<?php echo wp_kses_post( sprintf( __( 'Zamówienie wydzielone z zamówienia: <a href="%s" target="_blank">%s</a>', 'netivo' ), $dest_order->get_edit_order_url(), $dest_order->get_order_number() ) ); ?>
 				<?php endif; ?>
