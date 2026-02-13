@@ -9,6 +9,8 @@
 
 namespace Netivo\Module\WooCommerce\SplitOrder;
 
+use Netivo\Module\WooCommerce\SplitOrder\Admin\Panel;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	header( 'HTTP/1.0 403 Forbidden' );
 	exit;
@@ -106,6 +108,10 @@ class Module {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
 		new Checkout();
+
+		if ( is_admin() ) {
+			new Panel();
+		}
 	}
 
 	/**
