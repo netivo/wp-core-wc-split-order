@@ -38,6 +38,12 @@ if ( ! function_exists( 'is_cart' ) ) {
 	}
 }
 
+if ( ! function_exists( 'is_admin' ) ) {
+	function is_admin() {
+		return ! empty( $GLOBALS['wp_is_admin'] );
+	}
+}
+
 if ( ! function_exists( 'admin_url' ) ) {
 	function admin_url( $path = '' ) {
 		return rtrim( $GLOBALS['wp_admin_url'] ?? 'http://example.com/wp-admin', '/' ) . '/' . ltrim( $path, '/' );
@@ -86,6 +92,18 @@ if ( ! function_exists( 'add_filter' ) ) {
 if ( ! function_exists( 'remove_action' ) ) {
 	function remove_action( $hook, $callable, $priority = 10 ) {
 		$GLOBALS['wp_removed_actions'][] = compact( 'hook', 'callable', 'priority' );
+	}
+}
+
+if ( ! function_exists( 'wc_get_order' ) ) {
+	function wc_get_order( $id ) {
+		return $GLOBALS['wc_order_mock'] ?? null;
+	}
+}
+
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $data ) {
+		return $data;
 	}
 }
 
