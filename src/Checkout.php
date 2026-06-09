@@ -428,7 +428,7 @@ class Checkout {
 						continue;
 					}
 					if ( $c_product->get_manage_stock() ) {
-						if ( $c_product->get_stock_quantity() <= 0 ) {
+						if ( $c_product->get_stock_quantity() <= (int) $cart_item['quantity'] ) {
 							$products_to_split[] = $cart_item;
 						}
 					} else {
