@@ -210,6 +210,9 @@ class Checkout {
 			if ( $order->get_payment_method() === 'bacs' ) {
 				$this->split_order( $order, apply_filters( 'woocommerce_bacs_process_payment_order_status', \Automattic\WooCommerce\Enums\OrderStatus::ON_HOLD, $order ) );
 			}
+			if ( $order->get_payment_method() === 'nt_proforma' ) {
+				$this->split_order( $order, apply_filters( 'woocommerce_bacs_process_payment_order_status', \Automattic\WooCommerce\Enums\OrderStatus::ON_HOLD, $order ) );
+			}
 		}
 	}
 
@@ -267,10 +270,10 @@ class Checkout {
 	 * @return string The modified or original order number, with a split order ID appended if applicable.
 	 */
 	public function modify_order_number( string $order_number, WC_Order $order ): string {
-		if ( is_checkout() ) {
+		if ( is_order_received_page() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
-				return $order_number . ', ' . $split_order->get_id();
+				return $order_number . ', ' . $split_order->get_order_number();
 			}
 		}
 
@@ -291,7 +294,7 @@ class Checkout {
 	 * @return string The modified formatted total amount, or the original total if no split order exists.
 	 */
 	public function modify_order_total( string $total, WC_Order $order ): string {
-		if ( is_checkout() ) {
+		if ( is_order_received_page() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
 				$new_total = $order->get_total() + $split_order->get_total();
@@ -341,7 +344,7 @@ class Checkout {
 	 * @return array The modified array of order item totals.
 	 */
 	public function modify_order_item_totals( array $totals, WC_Order $order ): array {
-		if ( is_checkout() ) {
+		if ( is_order_received_page() ) {
 			$split_order = $this->get_split_order( $order );
 			if ( ! empty( $split_order ) ) {
 				$totals['order_total']['value'] = wc_price( $order->get_total() );
@@ -360,7 +363,7 @@ class Checkout {
 	 * @return void
 	 */
 	public function before_order_details_table( WC_Order $order ): void {
-		if ( is_checkout() ) {
+		if ( is_order_received_page() ) {
 			if ( $order->get_meta( '_order_split' ) === 'yes' ) {
 				remove_filter( 'woocommerce_order_number', array( $this, 'modify_order_number' ), 99 );
 				?>
@@ -448,7 +451,7 @@ class Checkout {
 					continue;
 				}
 				if ( $c_product->get_manage_stock() ) {
-					if ( $c_product->get_stock_quantity() <= 0 ) {
+					if ( $c_product->get_stock_quantity() <= $order_item->get_quantity() ) {
 						$to_split[ $order_item->get_id() ] = $order_item;
 					}
 				} else {
@@ -559,6 +562,9 @@ class Checkout {
 		$order->save();
 		$split_order->save();
 
+		$target_status = ! empty( $order_status ) ? $order_status : $order->get_status();
+		$split_order->update_status( $target_status, __( 'Zamówienie wydzielone.', 'netivo' ), true );
+
 		return $split_order->get_id();
 	}
 
@@ -566,7 +572,7 @@ class Checkout {
 	 * Clones an existing WooCommerce order to create a new order with similar properties and metadata.
 	 * Optionally allows setting a custom order status for the newly created order.
 	 *
-	 * @param WC_Order $order The original WooCommerce order object to be cloned.
+	 * @param WC_Order $order The original WooCommerce order To jeobject to be cloned.
 	 * @param string|null $order_status Optional. The desired status for the new order. If null, the status from the original order is used.
 	 *
 	 * @return WC_Order The newly created WooCommerce order object.
@@ -581,7 +587,6 @@ class Checkout {
 		) );
 
 		$new_order->set_props( array(
-			'status'               => ( ! empty( $order_status ) ) ? $order_status : $order->get_status(),
 			'billing_first_name'   => $order->get_billing_first_name(),
 			'billing_last_name'    => $order->get_billing_last_name(),
 			'billing_company'      => $order->get_billing_company(),
@@ -614,6 +619,12 @@ class Checkout {
 
 		if ( $order->get_meta( '_nip' ) ) {
 			$new_order->update_meta_data( '_nip', $order->get_meta( '_nip' ) );
+		}
+		if ( $order->get_meta( '_fv_vat' ) ) {
+			$new_order->update_meta_data( '_fv_vat', $order->get_meta( '_fv_vat' ) );
+		}
+		if ( $order->get_meta( '_is_b2b_order' ) ) {
+			$new_order->update_meta_data( '_is_b2b_order', $order->get_meta( '_is_b2b_order' ) );
 		}
 
 		$order->update_meta_data( '_order_split', 'yes' );
